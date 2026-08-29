@@ -18,7 +18,6 @@ app = FastAPI()
 supbase: Client = create_client(os.getenv("SUP_URL"), os.getenv("SUP_KEY"))
 print("Server running and connnected to Supabase")
 
-cookie_schema = HTTPBearer(scheme_name="JWT", bearerFormat="Bearer <token>")
 
 async def handleAuthentication(Authorization: Annotated[str | None, Header()] = None,):
     if not Authorization:
@@ -37,8 +36,8 @@ async def handleAuthentication(Authorization: Annotated[str | None, Header()] = 
     return token
     
 
+cookie_schema = HTTPBearer(scheme_name="JWT", bearerFormat="Bearer <token>")
 authenticatDep = Annotated[str, Depends(handleAuthentication)]
-
 
                            
 @app.get("/")
