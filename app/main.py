@@ -19,25 +19,19 @@ supbase: Client = create_client(os.getenv("SUP_URL"), os.getenv("SUP_KEY"))
 print("Server running and connnected to Supabase")
 
 
-async def handleAuthentication(Authorization: Annotated[str | None, Header()] = None,):
-    if not Authorization:
+cookie_schema = HTTPBearer(scheme_name="JWT", bearerFormat="Bearer <token>")
+async def handleAuthentication(credentials: HTTPAuthorizationCredentials | None = Depends(cookie_schema)):
+    if credentials is None:
         raise HTTPException(status_code=401, detail="Access token required")
-    
-    token = Authorization.split("Bearer ", 1)[1]
-
-    if not token:
-        raise HTTPException(status_code=401, detail="Access token required")
-
     try:
-        response = supbase.auth.get_user(token)
+        response = supbase.auth.get_user(credentials.credentials)
     except:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    return token
+    return credentials.credentials
     
-
-cookie_schema = HTTPBearer(scheme_name="JWT", bearerFormat="Bearer <token>")
 authenticatDep = Annotated[str, Depends(handleAuthentication)]
+
 
                            
 @app.get("/")
@@ -99,10 +93,10 @@ async def handleLogout(authentication: authenticatDep):
     return
 
 @app.get("/protected/profile")
-async def handleProfile(authentication: authenticatDep, credinatials: Annotated[HTTPAuthorizationCredentials, Depends(cookie_schema)]):
+async def handleProfile(authentication: authenticatDep):
     
     return supbase.auth.get_user(authentication)
 
 @app.get("/protected/dashboard")
-async def handleDashboard(authentication:  authenticatDep, credinatials: Annotated[HTTPAuthorizationCredentials, Depends(cookie_schema)]):
+async def handleDashboard(authentication:  authenticatDep):
     return {"message": "You have entered the dashboard info"}
