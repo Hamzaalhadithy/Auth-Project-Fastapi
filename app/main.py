@@ -1,4 +1,4 @@
-from fastapi  import  FastAPI, status, Response, Depends, HTTPException, Header
+from fastapi  import  FastAPI, status, Response, Depends, HTTPException, Header, Depends
 from pydantic import  BaseModel
 from dotenv import load_dotenv
 from typing import Annotated
@@ -13,9 +13,30 @@ class Sign(BaseModel):
 
 app = FastAPI()
 
+
 supbase: Client = create_client(os.getenv("SUP_URL"), os.getenv("SUP_KEY"))
 print("Server running and connnected to Supabase")
 
+async def handleAuthentication(Authorization: Annotated[str | None, Header()] = None,):
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="Access token required")
+    
+    token = Authorization.split("Bearer ", 1)[1]
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Access token required")
+
+    try:
+        response = supbase.auth.get_user(token)
+    except:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return token
+    
+
+authenticatDep = Annotated[str, Depends(handleAuthentication)]
+
+                           
 @app.get("/")
 async def root():
     """Return Server Status"""
@@ -26,24 +47,6 @@ async def handleInfo(response: Response):
     response.status_code = 200
     return {"message" : "Welcome Stranger! This info is public!."}
 
-@app.get("/protected/profile")
-async def handleProfile(Authorization: Annotated[str | None, Header()] = None):
-
-    if not Authorization:
-        raise HTTPException(status_code=401, detail="Access token required")
-    
-    token = Authorization.split("Bearer ", 1)[1]
-
-    if not token:
-        raise HTTPException(status_code=401, detail="Access token required")
-
-    try:
-
-        response = supbase.auth.get_user(token)
-    except:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    return response
 
 @app.post("/auth/signup", status_code=201)
 async def  handleSignUp(signup: Sign):
@@ -82,3 +85,21 @@ async def handleSignIn(login: Sign):
             raise HTTPException(status_code=401, detail="Invalid Login crednetials!")
 
     return response
+
+
+@app.post("/auth/logout", status_code=204)
+async def handleLogout(authentication: authenticatDep):
+    try:
+        supbase.auth.sign_out()
+    except:
+        raise HTTPException(status_code=401, detail="Couldn't  Sign out. Try again!")
+    return
+
+@app.get("/protected/profile")
+async def handleProfile(authentication: authenticatDep):
+    
+    return supbase.auth.get_user(authentication)
+
+@app.get("/protected/dashboard")
+async def handleDashboard(authentication:  authenticatDep):
+    return {"message": "You have entered the dashboard info"}
