@@ -1,6 +1,7 @@
-from fastapi  import  FastAPI, status, Response, Depends, HTTPException
+from fastapi  import  FastAPI, status, Response, Depends, HTTPException, Header
 from pydantic import  BaseModel
 from dotenv import load_dotenv
+from typing import Annotated
 from supabase import  create_client, Client
 import os 
 
@@ -20,7 +21,23 @@ async def root():
     """Return Server Status"""
     return {"Name" : "Auth Api","Status" : "Running", "Version": "1.0v"}
 
+@app.get("/public/info")
+async def handleInfo(response: Response):
+    response.status_code = 200
+    return {"message" : "Welcome Stranger! This info is public!."}
 
+@app.get("/protected/profile")
+async def handleProfile(Authorization: Annotated[str | None, Header()] = None):
+
+    if not Authorization:
+        raise HTTPException(status_code=401, detail="Access token required")
+    
+    token = Authorization.split("Bearer ", 1)[1]
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="Access token required")
+    
+    return {"Authorization" : token}
 
 @app.post("/auth/signup", status_code=201)
 async def  handleSignUp(signup: Sign):
