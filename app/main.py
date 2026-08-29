@@ -33,11 +33,17 @@ async def handleProfile(Authorization: Annotated[str | None, Header()] = None):
         raise HTTPException(status_code=401, detail="Access token required")
     
     token = Authorization.split("Bearer ", 1)[1]
-    
+
     if not token:
         raise HTTPException(status_code=401, detail="Access token required")
-    
-    return {"Authorization" : token}
+
+    try:
+
+        response = supbase.auth.get_user(token)
+    except:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return response
 
 @app.post("/auth/signup", status_code=201)
 async def  handleSignUp(signup: Sign):
