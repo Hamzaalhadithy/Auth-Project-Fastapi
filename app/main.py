@@ -3,6 +3,7 @@ from pydantic import  BaseModel
 from dotenv import load_dotenv
 from typing import Annotated
 from supabase import  create_client, Client
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os 
 
 load_dotenv()
@@ -16,6 +17,8 @@ app = FastAPI()
 
 supbase: Client = create_client(os.getenv("SUP_URL"), os.getenv("SUP_KEY"))
 print("Server running and connnected to Supabase")
+
+cookie_schema = HTTPBearer(scheme_name="JWT", bearerFormat="Bearer <token>")
 
 async def handleAuthentication(Authorization: Annotated[str | None, Header()] = None,):
     if not Authorization:
@@ -35,6 +38,7 @@ async def handleAuthentication(Authorization: Annotated[str | None, Header()] = 
     
 
 authenticatDep = Annotated[str, Depends(handleAuthentication)]
+
 
                            
 @app.get("/")
@@ -96,10 +100,10 @@ async def handleLogout(authentication: authenticatDep):
     return
 
 @app.get("/protected/profile")
-async def handleProfile(authentication: authenticatDep):
+async def handleProfile(authentication: authenticatDep, credinatials: Annotated[HTTPAuthorizationCredentials, Depends(cookie_schema)]):
     
     return supbase.auth.get_user(authentication)
 
 @app.get("/protected/dashboard")
-async def handleDashboard(authentication:  authenticatDep):
+async def handleDashboard(authentication:  authenticatDep, credinatials: Annotated[HTTPAuthorizationCredentials, Depends(cookie_schema)]):
     return {"message": "You have entered the dashboard info"}
